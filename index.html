@@ -4,14 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Jogo de Sinônimos em Inglês</title>
-    
-    <!-- PWA Tags -->
-    <meta name="theme-color" content="#ffffff"/>
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Synonym Challenge">
-    <link rel="manifest" id="manifest-link">
-
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -50,7 +42,7 @@
             
             <!-- Cabeçalho (escondido durante o carregamento) -->
             <header id="game-header" class="mb-6 hidden">
-                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Synonym Challenge</h1>
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Isaac English Challenge</h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinônimo e digite a palavra.</p>
                 <div class="mt-4 flex justify-between items-center text-lg">
                     <span id="level-display" class="font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">Fase: 1</span>
@@ -83,7 +75,7 @@
                 <div id="feedback-message" class="min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col"></div>
 
                 <!-- Botão de Próximo Nível -->
-                <button id="next-level-btn" class="hidden w-full md:w/2 mx-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
+                <button id="next-level-btn" class="hidden w-full md:w-1/2 mx-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
                     Próxima Fase
                 </button>
             </main>
@@ -102,90 +94,6 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- PWA SETUP ---
-            function setupPwa() {
-                const icon192_b64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAwKADAAQAAAABAAAAwAAAAACbWz2AAAAABJRU5ErkJggg==';
-                const icon512_b64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAACAKADAAQAAAABAAACAAAAAADcT3DMAAAAAxJREFUeAEs/yEn/wA/8v/3AA==';
-
-                const manifest = {
-                    "name": "Synonym Challenge",
-                    "short_name": "Synonyms",
-                    "start_url": ".",
-                    "display": "standalone",
-                    "background_color": "#f3f4f6",
-                    "theme_color": "#3b82f6",
-                    "description": "Um jogo divertido para aprender sinônimos em inglês.",
-                    "icons": [
-                        { "src": icon192_b64, "sizes": "192x192", "type": "image/png" },
-                        { "src": icon512_b64, "sizes": "512x512", "type": "image/png" }
-                    ]
-                };
-
-                const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-                const manifestURL = URL.createObjectURL(manifestBlob);
-                document.querySelector('#manifest-link').setAttribute('href', manifestURL);
-                
-                if ('serviceWorker' in navigator) {
-                    const swContent = `
-                        const CACHE_NAME = 'synonym-game-cache-v1';
-                        // Apenas a página principal é pré-armazenada. Outros recursos são armazenados em cache sob demanda.
-                        const urlsToCache = ['/'];
-
-                        self.addEventListener('install', event => {
-                            event.waitUntil(
-                                caches.open(CACHE_NAME)
-                                    .then(cache => {
-                                        console.log('Cache aberto');
-                                        return cache.addAll(urlsToCache);
-                                    })
-                            );
-                        });
-
-                        self.addEventListener('fetch', event => {
-                            event.respondWith(
-                                caches.match(event.request)
-                                    .then(response => {
-                                        // Se tivermos uma resposta em cache, a retornamos
-                                        if (response) {
-                                            return response;
-                                        }
-
-                                        // Caso contrário, buscamos na rede
-                                        return fetch(event.request).then(
-                                            networkResponse => {
-                                                // E se a busca for bem-sucedida, clonamos e armazenamos em cache para uso futuro
-                                                if (!networkResponse || networkResponse.status !== 200) {
-                                                     // Não armazena em cache respostas inválidas ou de extensões
-                                                    if (networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
-                                                         return networkResponse;
-                                                    }
-                                                }
-                                                
-                                                let responseToCache = networkResponse.clone();
-                                                caches.open(CACHE_NAME)
-                                                    .then(cache => {
-                                                        cache.put(event.request, responseToCache);
-                                                    });
-
-                                                return networkResponse;
-                                            }
-                                        );
-                                    })
-                            );
-                        });
-                    `;
-                    const swBlob = new Blob([swContent], {type: 'application/javascript'});
-                    const swURL = URL.createObjectURL(swBlob);
-
-                    window.addEventListener('load', () => {
-                        navigator.serviceWorker.register(swURL)
-                            .then(reg => console.log('Service worker registrado.'))
-                            .catch(err => console.log('Falha no registro do Service worker: ', err));
-                    });
-                }
-            }
-            setupPwa();
-
             // --- DADOS DO JOGO ---
             let vocabulary = [];
             let usedWords = [];
