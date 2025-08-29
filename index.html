@@ -93,7 +93,7 @@
                 <h2 class="text-3xl font-bold mb-4">Parabéns!</h2>
                 <p class="text-xl mb-4">Você completou todas as fases!</p>
                 <p class="text-2xl mb-6">Sua pontuação final é: <span id="final-score" class="font-bold text-green-500"></span></p>
-                <button id="restart-btn" class="w-full md:w-1/2 mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
+                <button id="restart-btn" class="w-full md:w/1/2 mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
                     Jogar Novamente
                 </button>
             </div>
@@ -116,8 +116,10 @@
                     "theme_color": "#3b82f6",
                     "description": "Um jogo divertido para aprender sinônimos em inglês.",
                     "icons": [
-                        { "src": icon192_url, "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
-                        { "src": icon512_url, "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+                        { "src": icon192_url, "sizes": "192x192", "type": "image/png", "purpose": "any" },
+                        { "src": icon512_url, "sizes": "512x512", "type": "image/png", "purpose": "any" },
+                        { "src": icon192_url, "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+                        { "src": icon512_url, "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
                     ]
                 };
 
