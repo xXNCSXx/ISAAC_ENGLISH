@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jogo de Sinônimos em Inglês</title>
+    
+    <!-- PWA Tags -->
+    <meta name="theme-color" content="#ffffff"/>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Synonym Challenge">
+    <link rel="manifest" id="manifest-link">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Foco customizado para as caixas de input */
+        .char-input:focus {
+            outline: none;
+            border-color: #3b82f6; /* blue-500 */
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+        }
+        /* Animação de entrada */
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-2xl mx-auto">
+        <!-- Conteúdo Principal do Jogo -->
+        <div id="game-container" class="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 text-center">
+            
+            <!-- Estado de Carregamento -->
+            <div id="loading-state" class="text-center p-8">
+                <p class="text-lg text-gray-600 dark:text-gray-400">Carregando vocabulário...</p>
+            </div>
+            
+            <!-- Cabeçalho (escondido durante o carregamento) -->
+            <header id="game-header" class="mb-6 hidden">
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Synonym Challenge</h1>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinônimo e digite a palavra.</p>
+                <div class="mt-4 flex justify-between items-center text-lg">
+                    <span id="level-display" class="font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">Fase: 1</span>
+                    <span id="score-display" class="font-semibold bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">Pontos: 0</span>
+                </div>
+            </header>
+
+            <!-- Conteúdo Principal (escondido durante o carregamento) -->
+            <main id="main-content" class="hidden">
+                <!-- Palavra Principal -->
+                <div class="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Encontre o sinônimo para:</p>
+                    <h2 id="main-word" class="text-4xl font-bold tracking-wider uppercase">WORD</h2>
+                </div>
+
+                <!-- Opções -->
+                <div id="options-container" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    <!-- Opções serão inseridas aqui pelo JavaScript -->
+                </div>
+
+                <!-- Área para digitar -->
+                <div class="mb-4">
+                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Digite o sinônimo e pressione Enter:</p>
+                    <div id="input-container" class="flex justify-center gap-2 flex-wrap">
+                        <!-- Inputs serão inseridos aqui -->
+                    </div>
+                </div>
+
+                <!-- Mensagem de Feedback -->
+                <div id="feedback-message" class="min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col"></div>
+
+                <!-- Botão de Próximo Nível -->
+                <button id="next-level-btn" class="hidden w-full md:w/2 mx-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
+                    Próxima Fase
+                </button>
+            </main>
+            
+            <!-- Tela Final -->
+            <div id="game-over-screen" class="hidden text-center">
+                <h2 class="text-3xl font-bold mb-4">Parabéns!</h2>
+                <p class="text-xl mb-4">Você completou todas as fases!</p>
+                <p class="text-2xl mb-6">Sua pontuação final é: <span id="final-score" class="font-bold text-green-500"></span></p>
+                <button id="restart-btn" class="w-full md:w-1/2 mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
+                    Jogar Novamente
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- PWA SETUP ---
+            function setupPwa() {
+                const icon192_b64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAwKADAAQAAAABAAAAwAAAAACbWz2AAAAABJRU5ErkJggg==';
+                const icon512_b64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAACAKADAAQAAAABAAACAAAAAADcT3DMAAAAAxJREFUeAEs/yEn/wA/8v/3AA==';
+
+                const manifest = {
+                    "name": "Synonym Challenge",
+                    "short_name": "Synonyms",
+                    "start_url": ".",
+                    "display": "standalone",
+                    "background_color": "#f3f4f6",
+                    "theme_color": "#3b82f6",
+                    "description": "Um jogo divertido para aprender sinônimos em inglês.",
+                    "icons": [
+                        { "src": icon192_b64, "sizes": "192x192", "type": "image/png" },
+                        { "src": icon512_b64, "sizes": "512x512", "type": "image/png" }
+                    ]
+                };
+
+                const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
+                const manifestURL = URL.createObjectURL(manifestBlob);
+                document.querySelector('#manifest-link').setAttribute('href', manifestURL);
+                
+                if ('serviceWorker' in navigator) {
+                    const swContent = `
+                        const CACHE_NAME = 'synonym-game-cache-v1';
+                        // Apenas a página principal é pré-armazenada. Outros recursos são armazenados em cache sob demanda.
+                        const urlsToCache = ['/'];
+
+                        self.addEventListener('install', event => {
+                            event.waitUntil(
+                                caches.open(CACHE_NAME)
+                                    .then(cache => {
+                                        console.log('Cache aberto');
+                                        return cache.addAll(urlsToCache);
+                                    })
+                            );
+                        });
+
+                        self.addEventListener('fetch', event => {
+                            event.respondWith(
+                                caches.match(event.request)
+                                    .then(response => {
+                                        // Se tivermos uma resposta em cache, a retornamos
+                                        if (response) {
+                                            return response;
+                                        }
+
+                                        // Caso contrário, buscamos na rede
+                                        return fetch(event.request).then(
+                                            networkResponse => {
+                                                // E se a busca for bem-sucedida, clonamos e armazenamos em cache para uso futuro
+                                                if (!networkResponse || networkResponse.status !== 200) {
+                                                     // Não armazena em cache respostas inválidas ou de extensões
+                                                    if (networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
+                                                         return networkResponse;
+                                                    }
+                                                }
+                                                
+                                                let responseToCache = networkResponse.clone();
+                                                caches.open(CACHE_NAME)
+                                                    .then(cache => {
+                                                        cache.put(event.request, responseToCache);
+                                                    });
+
+                                                return networkResponse;
+                                            }
+                                        );
+                                    })
+                            );
+                        });
+                    `;
+                    const swBlob = new Blob([swContent], {type: 'application/javascript'});
+                    const swURL = URL.createObjectURL(swBlob);
+
+                    window.addEventListener('load', () => {
+                        navigator.serviceWorker.register(swURL)
+                            .then(reg => console.log('Service worker registrado.'))
+                            .catch(err => console.log('Falha no registro do Service worker: ', err));
+                    });
+                }
+            }
+            setupPwa();
+
+            // --- DADOS DO JOGO ---
+            let vocabulary = [];
+            let usedWords = [];
+
+            // --- ESTADO DO JOGO ---
+            let currentLevel = 0;
+            let score = 0;
+            let currentCorrectAnswer = '';
+
+            // --- ELEMENTOS DO DOM ---
+            const loadingState = document.getElementById('loading-state');
+            const gameHeader = document.getElementById('game-header');
+            const mainContent = document.getElementById('main-content');
+            
+            const levelDisplay = document.getElementById('level-display');
+            const scoreDisplay = document.getElementById('score-display');
+            const mainWordEl = document.getElementById('main-word');
+            const optionsContainer = document.getElementById('options-container');
+            const inputContainer = document.getElementById('input-container');
+            const feedbackMessage = document.getElementById('feedback-message');
+            const nextLevelBtn = document.getElementById('next-level-btn');
+            
+            const gameOverScreen = document.getElementById('game-over-screen');
+            const finalScoreEl = document.getElementById('final-score');
+            const restartBtn = document.getElementById('restart-btn');
+
+            // --- LÓGICA DE CARREGAMENTO DE ARQUIVO DA URL ---
+            async function loadVocabularyFromUrl() {
+                const url = 'https://xxncsxx.github.io/ISAAC_INGLISH/modelo_vocabulario.xlsx';
+                try {
+                    const response = await fetch(url);
+                    if (!response.ok) {
+                        throw new Error(`Erro de rede: ${response.statusText}`);
+                    }
+                    const arrayBuffer = await response.arrayBuffer();
+                    const data = new Uint8Array(arrayBuffer);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(worksheet);
+
+                    if (json.length > 0 && 'word' in json[0] && 'synonym' in json[0] && 'word_pt' in json[0] && 'synonym_pt' in json[0]) {
+                        vocabulary = json;
+                        // Oculta o carregamento e mostra o jogo
+                        loadingState.classList.add('hidden');
+                        gameHeader.classList.remove('hidden');
+                        mainContent.classList.remove('hidden');
+                        mainContent.classList.add('fade-in');
+                        loadLevel(); // Inicia a primeira fase
+                    } else {
+                        throw new Error("Formato de arquivo inválido. Verifique os cabeçalhos das colunas.");
+                    }
+                } catch (error) {
+                    loadingState.innerHTML = `<p class="text-red-500">Falha ao carregar vocabulário: ${error.message}</p>`;
+                }
+            }
+
+            // --- FUNÇÕES DO JOGO ---
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]];
+                }
+                return array;
+            }
+
+            function loadLevel() {
+                mainContent.classList.remove('fade-in');
+                void mainContent.offsetWidth; 
+                mainContent.classList.add('fade-in');
+
+                if(usedWords.length === vocabulary.length) {
+                    showGameOver();
+                    return;
+                }
+                
+                currentLevel++;
+                feedbackMessage.innerHTML = '';
+                nextLevelBtn.classList.add('hidden');
+                
+                let wordData;
+                do {
+                    wordData = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+                } while (usedWords.includes(wordData.word));
+                
+                usedWords.push(wordData.word);
+                currentCorrectAnswer = wordData.synonym.toLowerCase();
+
+                const correctAnswer = wordData.synonym;
+                const wrongAnswers = [];
+                const wordPool = vocabulary.filter(item => item.word !== wordData.word && item.synonym !== correctAnswer);
+                
+                while (wrongAnswers.length < 2 && wordPool.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * wordPool.length);
+                    const randomWord = wordPool.splice(randomIndex, 1)[0];
+                    if (!wrongAnswers.includes(randomWord.synonym)) {
+                        wrongAnswers.push(randomWord.synonym);
+                    }
+                }
+                
+                const options = shuffleArray([correctAnswer, ...wrongAnswers]);
+
+                levelDisplay.textContent = `Fase: ${currentLevel}`;
+                mainWordEl.textContent = wordData.word;
+
+                optionsContainer.innerHTML = '';
+                options.forEach(option => {
+                    const optionEl = document.createElement('div');
+                    optionEl.className = 'p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-xl font-semibold border-2 border-transparent';
+                    optionEl.textContent = option;
+                    optionsContainer.appendChild(optionEl);
+                });
+
+                setupInputField();
+            }
+
+            function setupInputField() {
+                inputContainer.innerHTML = '';
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = 'answer-input';
+                input.placeholder = 'Digite a resposta...';
+                input.autocomplete = 'off';
+                input.className = 'char-input w-full max-w-sm mx-auto h-14 text-center text-2xl font-bold bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-lg transition';
+                
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        checkAnswer();
+                    }
+                });
+
+                inputContainer.appendChild(input);
+                input.focus();
+            }
+
+            function checkAnswer() {
+                const input = document.getElementById('answer-input');
+                if (!input) return;
+                const typedWord = input.value.trim().toLowerCase();
+
+                if (!typedWord) return;
+
+                if (typedWord === currentCorrectAnswer) {
+                    const currentWordData = vocabulary.find(item => item.synonym.toLowerCase() === currentCorrectAnswer);
+                    
+                    if(currentWordData) {
+                        feedbackMessage.innerHTML = `Correto! 🎉 <span class="block text-base font-normal mt-1">${currentWordData.word} = ${currentWordData.word_pt} | ${currentWordData.synonym} = ${currentWordData.synonym_pt}</span>`;
+                    } else {
+                        feedbackMessage.textContent = 'Correto! 🎉';
+                    }
+                    
+                    feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-green-500';
+                    score += 10;
+                    scoreDisplay.textContent = `Pontos: ${score}`;
+                    nextLevelBtn.classList.remove('hidden');
+                    
+                    input.disabled = true;
+                    input.classList.add('bg-green-100', 'dark:bg-green-900', 'border-green-400');
+
+                } else {
+                    feedbackMessage.textContent = 'Ops, tente novamente!';
+                    feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-red-500';
+
+                    inputContainer.classList.add('animate-shake');
+                    setTimeout(() => {
+                       inputContainer.classList.remove('animate-shake');
+                       input.value = '';
+                       input.focus();
+                    }, 500);
+                }
+            }
+
+            function showGameOver() {
+                mainContent.classList.add('hidden');
+                gameOverScreen.classList.remove('hidden');
+                finalScoreEl.textContent = score;
+            }
+
+            function restartGame() {
+                currentLevel = 0;
+                score = 0;
+                usedWords = [];
+                scoreDisplay.textContent = `Pontos: 0`;
+                mainContent.classList.remove('hidden');
+                gameOverScreen.classList.add('hidden');
+                loadLevel();
+            }
+            
+            // --- INICIALIZAÇÃO DOS EVENTOS ---
+            nextLevelBtn.addEventListener('click', loadLevel);
+            restartBtn.addEventListener('click', restartGame);
+
+            // Inicia o carregamento do vocabulário assim que a página estiver pronta
+            loadVocabularyFromUrl();
+        });
+
+        const style = document.createElement('style');
+        style.innerHTML = `
+            .animate-shake {
+                animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+                transform: translate3d(0, 0, 0);
+            }
+            @keyframes shake {
+                10%, 90% { transform: translate3d(-1px, 0, 0); }
+                20%, 80% { transform: translate3d(2px, 0, 0); }
+                30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+                40%, 60% { transform: translate3d(4px, 0, 0); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+</html>
+
