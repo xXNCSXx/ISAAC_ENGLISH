@@ -10,7 +10,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Synonym Challenge">
-    <link rel="manifest" id="manifest-link">
+    <!-- Aponta para o ficheiro manifest.json físico -->
+    <link rel="manifest" href="manifest.json">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -45,13 +46,13 @@
             
             <!-- Estado de Carregamento -->
             <div id="loading-state" class="text-center p-8">
-                <p class="text-lg text-gray-600 dark:text-gray-400">Carregando vocabulário...</p>
+                <p class="text-lg text-gray-600 dark:text-gray-400">A carregar vocabulário...</p>
             </div>
             
             <!-- Cabeçalho (escondido durante o carregamento) -->
             <header id="game-header" class="mb-6 hidden">
                 <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Synonym Challenge</h1>
-                <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinônimo e digite a palavra.</p>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinónimo e digite a palavra.</p>
                 <div class="mt-4 flex justify-between items-center text-lg">
                     <span id="level-display" class="font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">Fase: 1</span>
                     <span id="score-display" class="font-semibold bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">Pontos: 0</span>
@@ -62,7 +63,7 @@
             <main id="main-content" class="hidden">
                 <!-- Palavra Principal -->
                 <div class="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Encontre o sinônimo para:</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Encontre o sinónimo para:</p>
                     <h2 id="main-word" class="text-4xl font-bold tracking-wider uppercase">WORD</h2>
                 </div>
 
@@ -73,7 +74,7 @@
 
                 <!-- Área para digitar -->
                 <div class="mb-4">
-                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Digite o sinônimo e pressione Enter:</p>
+                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Digite o sinónimo e pressione Enter:</p>
                     <div id="input-container" class="flex justify-center gap-2 flex-wrap">
                         <!-- Inputs serão inseridos aqui -->
                     </div>
@@ -83,7 +84,7 @@
                 <div id="feedback-message" class="min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col"></div>
 
                 <!-- Botão de Próximo Nível -->
-                <button id="next-level-btn" class="hidden w-full md:w/2 mx-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
+                <button id="next-level-btn" class="hidden w-full md:w-1/2 mx-auto bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
                     Próxima Fase
                 </button>
             </main>
@@ -91,8 +92,8 @@
             <!-- Tela Final -->
             <div id="game-over-screen" class="hidden text-center">
                 <h2 class="text-3xl font-bold mb-4">Parabéns!</h2>
-                <p class="text-xl mb-4">Você completou todas as fases!</p>
-                <p class="text-2xl mb-6">Sua pontuação final é: <span id="final-score" class="font-bold text-green-500"></span></p>
+                <p class="text-xl mb-4">Completou todas as fases!</p>
+                <p class="text-2xl mb-6">A sua pontuação final é: <span id="final-score" class="font-bold text-green-500"></span></p>
                 <button id="restart-btn" class="w-full md:w-1/2 mx-auto bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-xl transition duration-300 shadow-md">
                     Jogar Novamente
                 </button>
@@ -102,75 +103,26 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- PWA SETUP ---
-            function setupPwa() {
-                const icon192_b64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAYAAABS3GwHAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAAwKADAAQAAAABAAAAwAAAAACbWz2AAAAABJRU5ErkJggg==';
-                const icon512_b64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAgAAAAIACAYAAAD0eNT6AAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAACAKADAAQAAAABAAACAAAAAADcT3DMAAAAAxJREFUeAEs/yEn/wA/8v/3AA==';
-
-                const manifest = {
-                    "name": "Synonym Challenge",
-                    "short_name": "Synonyms",
-                    "start_url": ".",
-                    "display": "standalone",
-                    "background_color": "#f3f4f6",
-                    "theme_color": "#3b82f6",
-                    "description": "Um jogo divertido para aprender sinônimos em inglês.",
-                    "icons": [
-                        { "src": icon192_b64, "sizes": "192x192", "type": "image/png" },
-                        { "src": icon512_b64, "sizes": "512x512", "type": "image/png" }
-                    ]
-                };
-
-                const manifestBlob = new Blob([JSON.stringify(manifest)], {type: 'application/json'});
-                const manifestURL = URL.createObjectURL(manifestBlob);
-                document.querySelector('#manifest-link').setAttribute('href', manifestURL);
-                
+            // --- PWA SETUP (Service Worker) ---
+            function setupServiceWorker() {
                 if ('serviceWorker' in navigator) {
+                    // O Service Worker continua a ser gerado dinamicamente para simplicidade.
+                    // A alternativa seria criar um ficheiro sw.js separado.
                     const swContent = `
                         const CACHE_NAME = 'synonym-game-cache-v1';
-                        // Apenas a página principal é pré-armazenada. Outros recursos são armazenados em cache sob demanda.
-                        const urlsToCache = ['/'];
+                        const urlsToCache = ['/', '/index.html', '/manifest.json'];
 
                         self.addEventListener('install', event => {
                             event.waitUntil(
-                                caches.open(CACHE_NAME)
-                                    .then(cache => {
-                                        console.log('Cache aberto');
-                                        return cache.addAll(urlsToCache);
-                                    })
+                                caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
                             );
                         });
 
                         self.addEventListener('fetch', event => {
                             event.respondWith(
-                                caches.match(event.request)
-                                    .then(response => {
-                                        // Se tivermos uma resposta em cache, a retornamos
-                                        if (response) {
-                                            return response;
-                                        }
-
-                                        // Caso contrário, buscamos na rede
-                                        return fetch(event.request).then(
-                                            networkResponse => {
-                                                // E se a busca for bem-sucedida, clonamos e armazenamos em cache para uso futuro
-                                                if (!networkResponse || networkResponse.status !== 200) {
-                                                     // Não armazena em cache respostas inválidas ou de extensões
-                                                    if (networkResponse.type !== 'basic' && networkResponse.type !== 'cors') {
-                                                         return networkResponse;
-                                                    }
-                                                }
-                                                
-                                                let responseToCache = networkResponse.clone();
-                                                caches.open(CACHE_NAME)
-                                                    .then(cache => {
-                                                        cache.put(event.request, responseToCache);
-                                                    });
-
-                                                return networkResponse;
-                                            }
-                                        );
-                                    })
+                                caches.match(event.request).then(response => {
+                                    return response || fetch(event.request);
+                                })
                             );
                         });
                     `;
@@ -179,12 +131,12 @@
 
                     window.addEventListener('load', () => {
                         navigator.serviceWorker.register(swURL)
-                            .then(reg => console.log('Service worker registrado.'))
-                            .catch(err => console.log('Falha no registro do Service worker: ', err));
+                            .then(reg => console.log('Service worker registado.'))
+                            .catch(err => console.log('Falha no registo do Service worker: ', err));
                     });
                 }
             }
-            setupPwa();
+            setupServiceWorker();
 
             // --- DADOS DO JOGO ---
             let vocabulary = [];
@@ -212,9 +164,9 @@
             const finalScoreEl = document.getElementById('final-score');
             const restartBtn = document.getElementById('restart-btn');
 
-            // --- LÓGICA DE CARREGAMENTO DE ARQUIVO DA URL ---
+            // --- LÓGICA DE CARREGAMENTO DE FICHEIRO DA URL ---
             async function loadVocabularyFromUrl() {
-                const url = 'https://xxncsxx.github.io/ISAAC_INGLISH/modelo_vocabulario.xlsx';
+                const url = 'https://xxncsxx.github.io/ISAAC_ENGLISH/modelo_vocabulario.xlsx';
                 try {
                     const response = await fetch(url);
                     if (!response.ok) {
@@ -236,7 +188,7 @@
                         mainContent.classList.add('fade-in');
                         loadLevel(); // Inicia a primeira fase
                     } else {
-                        throw new Error("Formato de arquivo inválido. Verifique os cabeçalhos das colunas.");
+                        throw new Error("Formato de ficheiro inválido. Verifique os cabeçalhos das colunas.");
                     }
                 } catch (error) {
                     loadingState.innerHTML = `<p class="text-red-500">Falha ao carregar vocabulário: ${error.message}</p>`;
