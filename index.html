@@ -36,6 +36,13 @@
             from { opacity: 0; transform: translateY(-10px); }
             to { opacity: 1; transform: translateY(0); }
         }
+        .speaker-icon.loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4">
@@ -51,7 +58,7 @@
             
             <!-- Cabeçalho (escondido durante o carregamento) -->
             <header id="game-header" class="mb-6 hidden">
-                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Synonym Challenge</h1>
+                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Isaac English Challenge</h1>
                 <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinónimo e digite a palavra.</p>
                 <div class="mt-4 flex justify-between items-center text-lg">
                     <span id="level-display" class="font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">Fase: 1</span>
@@ -62,9 +69,16 @@
             <!-- Conteúdo Principal (escondido durante o carregamento) -->
             <main id="main-content" class="hidden">
                 <!-- Palavra Principal -->
-                <div class="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <div id="main-word-container" class="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg select-none transition-colors duration-200">
                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Encontre o sinónimo para:</p>
-                    <h2 id="main-word" class="text-4xl font-bold tracking-wider uppercase">WORD</h2>
+                    <div class="flex items-center justify-center gap-4">
+                        <div id="main-word-text-wrapper" class="cursor-pointer">
+                           <h2 id="main-word" class="text-4xl font-bold tracking-wider uppercase">WORD</h2>
+                        </div>
+                        <button id="main-word-speaker" class="text-gray-500 hover:text-blue-500 transition-colors">
+                            <svg class="w-8 h-8 speaker-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Opções -->
@@ -106,29 +120,18 @@
             // --- PWA SETUP (Service Worker) ---
             function setupServiceWorker() {
                 if ('serviceWorker' in navigator) {
-                    // O Service Worker continua a ser gerado dinamicamente para simplicidade.
-                    // A alternativa seria criar um ficheiro sw.js separado.
                     const swContent = `
                         const CACHE_NAME = 'synonym-game-cache-v1';
                         const urlsToCache = ['/', '/index.html', '/manifest.json'];
-
                         self.addEventListener('install', event => {
-                            event.waitUntil(
-                                caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
-                            );
+                            event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache)));
                         });
-
                         self.addEventListener('fetch', event => {
-                            event.respondWith(
-                                caches.match(event.request).then(response => {
-                                    return response || fetch(event.request);
-                                })
-                            );
+                            event.respondWith(caches.match(event.request).then(response => response || fetch(event.request)));
                         });
                     `;
                     const swBlob = new Blob([swContent], {type: 'application/javascript'});
                     const swURL = URL.createObjectURL(swBlob);
-
                     window.addEventListener('load', () => {
                         navigator.serviceWorker.register(swURL)
                             .then(reg => console.log('Service worker registado.'))
@@ -146,20 +149,22 @@
             let currentLevel = 0;
             let score = 0;
             let currentCorrectAnswer = '';
+            let currentWordData = null;
 
             // --- ELEMENTOS DO DOM ---
             const loadingState = document.getElementById('loading-state');
             const gameHeader = document.getElementById('game-header');
             const mainContent = document.getElementById('main-content');
-            
             const levelDisplay = document.getElementById('level-display');
             const scoreDisplay = document.getElementById('score-display');
+            const mainWordContainer = document.getElementById('main-word-container');
+            const mainWordTextWrapper = document.getElementById('main-word-text-wrapper');
             const mainWordEl = document.getElementById('main-word');
+            const mainWordSpeaker = document.getElementById('main-word-speaker');
             const optionsContainer = document.getElementById('options-container');
             const inputContainer = document.getElementById('input-container');
             const feedbackMessage = document.getElementById('feedback-message');
             const nextLevelBtn = document.getElementById('next-level-btn');
-            
             const gameOverScreen = document.getElementById('game-over-screen');
             const finalScoreEl = document.getElementById('final-score');
             const restartBtn = document.getElementById('restart-btn');
@@ -169,9 +174,7 @@
                 const url = 'https://xxncsxx.github.io/ISAAC_ENGLISH/modelo_vocabulario.xlsx';
                 try {
                     const response = await fetch(url);
-                    if (!response.ok) {
-                        throw new Error(`Erro de rede: ${response.statusText}`);
-                    }
+                    if (!response.ok) throw new Error(`Erro de rede: ${response.statusText}`);
                     const arrayBuffer = await response.arrayBuffer();
                     const data = new Uint8Array(arrayBuffer);
                     const workbook = XLSX.read(data, { type: 'array' });
@@ -181,17 +184,107 @@
 
                     if (json.length > 0 && 'word' in json[0] && 'synonym' in json[0] && 'word_pt' in json[0] && 'synonym_pt' in json[0]) {
                         vocabulary = json;
-                        // Oculta o carregamento e mostra o jogo
                         loadingState.classList.add('hidden');
                         gameHeader.classList.remove('hidden');
                         mainContent.classList.remove('hidden');
                         mainContent.classList.add('fade-in');
-                        loadLevel(); // Inicia a primeira fase
+                        loadLevel();
                     } else {
                         throw new Error("Formato de ficheiro inválido. Verifique os cabeçalhos das colunas.");
                     }
                 } catch (error) {
                     loadingState.innerHTML = `<p class="text-red-500">Falha ao carregar vocabulário: ${error.message}</p>`;
+                }
+            }
+
+            // --- FUNÇÕES DE ÁUDIO (TTS com API Gemini) ---
+            function base64ToArrayBuffer(base64) {
+                const binaryString = window.atob(base64);
+                const len = binaryString.length;
+                const bytes = new Uint8Array(len);
+                for (let i = 0; i < len; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes.buffer;
+            }
+
+            function pcmToWav(pcmData, sampleRate) {
+                const pcm16 = new Int16Array(pcmData);
+                const header = new ArrayBuffer(44);
+                const view = new DataView(header);
+                
+                function writeString(view, offset, string) {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
+                    }
+                }
+
+                writeString(view, 0, 'RIFF');
+                view.setUint32(4, 36 + pcm16.length * 2, true);
+                writeString(view, 8, 'WAVE');
+                writeString(view, 12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * 2, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeString(view, 36, 'data');
+                view.setUint32(40, pcm16.length * 2, true);
+
+                return new Blob([view, pcm16], { type: 'audio/wav' });
+            }
+
+            async function speakWord(word, iconElement) {
+                if (!word || iconElement.classList.contains('loading')) return;
+
+                const originalIconContent = iconElement.innerHTML;
+                iconElement.innerHTML = `<svg class="w-8 h-8 speaker-icon loading" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5V4H4zm0 12h5v-5H4v5zm8 0h5v-5h-5v5zm8-12v5h-5V4h5z"></path></svg>`; // Simple loader
+                iconElement.classList.add('cursor-not-allowed');
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: word }] }],
+                    generationConfig: {
+                        responseModalities: ["AUDIO"],
+                        speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Kore" } } }
+                    },
+                    model: "gemini-2.5-flash-preview-tts"
+                };
+
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) throw new Error(`API request failed with status ${response.status}`);
+
+                    const result = await response.json();
+                    const part = result?.candidates?.[0]?.content?.parts?.[0];
+                    const audioData = part?.inlineData?.data;
+                    const mimeType = part?.inlineData?.mimeType;
+
+                    if (audioData && mimeType?.startsWith("audio/")) {
+                        const sampleRate = parseInt(mimeType.match(/rate=(\d+)/)[1], 10);
+                        const pcmData = base64ToArrayBuffer(audioData);
+                        const wavBlob = pcmToWav(pcmData, sampleRate);
+                        const audioUrl = URL.createObjectURL(wavBlob);
+                        const audio = new Audio(audioUrl);
+                        audio.play();
+                        audio.onended = () => URL.revokeObjectURL(audioUrl);
+                    } else {
+                        throw new Error("Invalid audio data in API response.");
+                    }
+                } catch (error) {
+                    console.error('Error generating or playing audio:', error);
+                } finally {
+                    iconElement.innerHTML = originalIconContent;
+                    iconElement.classList.remove('cursor-not-allowed');
                 }
             }
 
@@ -206,51 +299,68 @@
 
             function loadLevel() {
                 mainContent.classList.remove('fade-in');
-                void mainContent.offsetWidth; 
+                void mainContent.offsetWidth;
                 mainContent.classList.add('fade-in');
 
-                if(usedWords.length === vocabulary.length) {
+                if (usedWords.length === vocabulary.length) {
                     showGameOver();
                     return;
                 }
-                
+
                 currentLevel++;
                 feedbackMessage.innerHTML = '';
                 nextLevelBtn.classList.add('hidden');
-                
-                let wordData;
-                do {
-                    wordData = vocabulary[Math.floor(Math.random() * vocabulary.length)];
-                } while (usedWords.includes(wordData.word));
-                
-                usedWords.push(wordData.word);
-                currentCorrectAnswer = wordData.synonym.toLowerCase();
 
-                const correctAnswer = wordData.synonym;
-                const wrongAnswers = [];
-                const wordPool = vocabulary.filter(item => item.word !== wordData.word && item.synonym !== correctAnswer);
+                do {
+                    currentWordData = vocabulary[Math.floor(Math.random() * vocabulary.length)];
+                } while (usedWords.includes(currentWordData.word));
                 
-                while (wrongAnswers.length < 2 && wordPool.length > 0) {
+                usedWords.push(currentWordData.word);
+                currentCorrectAnswer = currentWordData.synonym.toLowerCase();
+
+                const correctAnswerOption = { word: currentWordData.synonym, pt: currentWordData.synonym_pt };
+                const wrongAnswerOptions = [];
+                const wordPool = vocabulary.filter(item => item.word !== currentWordData.word && item.synonym !== correctAnswerOption.word);
+
+                while (wrongAnswerOptions.length < 2 && wordPool.length > 0) {
                     const randomIndex = Math.floor(Math.random() * wordPool.length);
                     const randomWord = wordPool.splice(randomIndex, 1)[0];
-                    if (!wrongAnswers.includes(randomWord.synonym)) {
-                        wrongAnswers.push(randomWord.synonym);
+                    if (!wrongAnswerOptions.some(opt => opt.word === randomWord.synonym)) {
+                        wrongAnswerOptions.push({ word: randomWord.synonym, pt: randomWord.synonym_pt });
                     }
                 }
-                
-                const options = shuffleArray([correctAnswer, ...wrongAnswers]);
 
+                const options = shuffleArray([correctAnswerOption, ...wrongAnswerOptions]);
                 levelDisplay.textContent = `Fase: ${currentLevel}`;
-                mainWordEl.textContent = wordData.word;
+                mainWordEl.textContent = currentWordData.word;
 
                 optionsContainer.innerHTML = '';
                 options.forEach(option => {
                     const optionEl = document.createElement('div');
-                    optionEl.className = 'p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-xl font-semibold border-2 border-transparent';
-                    optionEl.textContent = option;
+                    optionEl.className = 'p-4 bg-gray-100 dark:bg-gray-700 rounded-lg text-xl font-semibold border-2 border-transparent select-none transition-colors duration-200 flex items-center justify-center gap-2';
+
+                    const wordSpan = document.createElement('span');
+                    wordSpan.className = 'cursor-pointer flex-grow text-center';
+                    wordSpan.textContent = option.word;
+
+                    const speakerBtn = document.createElement('button');
+                    speakerBtn.className = 'text-gray-500 hover:text-blue-500 transition-colors';
+                    speakerBtn.innerHTML = `<svg class="w-8 h-8 speaker-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>`;
+
+                    const showTranslation = (e) => { e.preventDefault(); wordSpan.textContent = option.pt; optionEl.classList.add('bg-blue-200', 'dark:bg-blue-800'); };
+                    const showOriginal = () => { wordSpan.textContent = option.word; optionEl.classList.remove('bg-blue-200', 'dark:bg-blue-800'); };
+
+                    wordSpan.addEventListener('mousedown', showTranslation);
+                    wordSpan.addEventListener('mouseup', showOriginal);
+                    wordSpan.addEventListener('mouseleave', showOriginal);
+                    wordSpan.addEventListener('touchstart', showTranslation, { passive: false });
+                    wordSpan.addEventListener('touchend', showOriginal);
+                    speakerBtn.addEventListener('click', (e) => { e.stopPropagation(); speakWord(option.word, speakerBtn.querySelector('svg')); });
+                    
+                    optionEl.appendChild(wordSpan);
+                    optionEl.appendChild(speakerBtn);
                     optionsContainer.appendChild(optionEl);
                 });
-
                 setupInputField();
             }
 
@@ -262,14 +372,7 @@
                 input.placeholder = 'Digite a resposta...';
                 input.autocomplete = 'off';
                 input.className = 'char-input w-full max-w-sm mx-auto h-14 text-center text-2xl font-bold bg-white dark:bg-gray-600 border-2 border-gray-300 dark:border-gray-500 rounded-lg transition';
-                
-                input.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        checkAnswer();
-                    }
-                });
-
+                input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); checkAnswer(); } });
                 inputContainer.appendChild(input);
                 input.focus();
             }
@@ -278,36 +381,21 @@
                 const input = document.getElementById('answer-input');
                 if (!input) return;
                 const typedWord = input.value.trim().toLowerCase();
-
                 if (!typedWord) return;
 
                 if (typedWord === currentCorrectAnswer) {
-                    const currentWordData = vocabulary.find(item => item.synonym.toLowerCase() === currentCorrectAnswer);
-                    
-                    if(currentWordData) {
-                        feedbackMessage.innerHTML = `Correto! 🎉 <span class="block text-base font-normal mt-1">${currentWordData.word} = ${currentWordData.word_pt} | ${currentWordData.synonym} = ${currentWordData.synonym_pt}</span>`;
-                    } else {
-                        feedbackMessage.textContent = 'Correto! 🎉';
-                    }
-                    
+                    feedbackMessage.innerHTML = `Correto! 🎉 <span class="block text-base font-normal mt-1">${currentWordData.word} = ${currentWordData.word_pt} | ${currentWordData.synonym} = ${currentWordData.synonym_pt}</span>`;
                     feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-green-500';
                     score += 10;
                     scoreDisplay.textContent = `Pontos: ${score}`;
                     nextLevelBtn.classList.remove('hidden');
-                    
                     input.disabled = true;
                     input.classList.add('bg-green-100', 'dark:bg-green-900', 'border-green-400');
-
                 } else {
                     feedbackMessage.textContent = 'Ops, tente novamente!';
                     feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-red-500';
-
                     inputContainer.classList.add('animate-shake');
-                    setTimeout(() => {
-                       inputContainer.classList.remove('animate-shake');
-                       input.value = '';
-                       input.focus();
-                    }, 500);
+                    setTimeout(() => { inputContainer.classList.remove('animate-shake'); input.value = ''; input.focus(); }, 500);
                 }
             }
 
@@ -321,17 +409,26 @@
                 currentLevel = 0;
                 score = 0;
                 usedWords = [];
+                currentWordData = null;
                 scoreDisplay.textContent = `Pontos: 0`;
                 mainContent.classList.remove('hidden');
                 gameOverScreen.classList.add('hidden');
                 loadLevel();
             }
-            
+
             // --- INICIALIZAÇÃO DOS EVENTOS ---
             nextLevelBtn.addEventListener('click', loadLevel);
             restartBtn.addEventListener('click', restartGame);
 
-            // Inicia o carregamento do vocabulário assim que a página estiver pronta
+            const showMainWordTranslation = (e) => { if (currentWordData) { e.preventDefault(); mainWordEl.textContent = currentWordData.word_pt; mainWordContainer.classList.add('bg-blue-200', 'dark:bg-blue-800'); }};
+            const showMainWordOriginal = () => { if (currentWordData) { mainWordEl.textContent = currentWordData.word; mainWordContainer.classList.remove('bg-blue-200', 'dark:bg-blue-800'); }};
+            mainWordTextWrapper.addEventListener('mousedown', showMainWordTranslation);
+            mainWordTextWrapper.addEventListener('mouseup', showMainWordOriginal);
+            mainWordTextWrapper.addEventListener('mouseleave', showMainWordOriginal);
+            mainWordTextWrapper.addEventListener('touchstart', showMainWordTranslation, { passive: false });
+            mainWordTextWrapper.addEventListener('touchend', showMainWordOriginal);
+            mainWordSpeaker.addEventListener('click', () => speakWord(currentWordData.word, mainWordSpeaker.querySelector('svg')));
+
             loadVocabularyFromUrl();
         });
 
