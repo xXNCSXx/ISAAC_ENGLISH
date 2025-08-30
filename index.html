@@ -58,8 +58,10 @@
             
             <!-- Cabeçalho (escondido durante o carregamento) -->
             <header id="game-header" class="mb-6 hidden">
-                <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Isaac English Challenge</h1>
-                <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinónimo e digite a palavra.</p>
+                 <div class="text-left">
+                    <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Isaac English Challenge</h1>
+                    <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinónimo e digite a palavra.</p>
+                </div>
                 <div class="mt-4 flex justify-between items-center text-lg">
                     <span id="level-display" class="font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">Fase: 1</span>
                     <span id="score-display" class="font-semibold bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-3 py-1 rounded-full">Pontos: 0</span>
@@ -117,6 +119,10 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
+            // --- IMPORTANTE: Insira a sua chave de API do Gemini aqui ---
+            // Obtenha a sua chave em: https://aistudio.google.com/app/apikey
+            const userApiKey = 'AIzaSyAL_Gq4nw6dDcL6fPXFze5A2QjokfXyBJg';
+
             // --- PWA SETUP (Service Worker) ---
             function setupServiceWorker() {
                 if ('serviceWorker' in navigator) {
@@ -171,6 +177,10 @@
 
             // --- LÓGICA DE CARREGAMENTO DE FICHEIRO DA URL ---
             async function loadVocabularyFromUrl() {
+                loadingState.classList.remove('hidden');
+                gameHeader.classList.add('hidden');
+                mainContent.classList.add('hidden');
+
                 const url = 'https://xxncsxx.github.io/ISAAC_ENGLISH/modelo_vocabulario.xlsx';
                 try {
                     const response = await fetch(url);
@@ -238,13 +248,18 @@
 
             async function speakWord(word, iconElement) {
                 if (!word || iconElement.classList.contains('loading')) return;
+                
+                if (userApiKey === 'COLE_SUA_CHAVE_DE_API_AQUI' || !userApiKey) {
+                    feedbackMessage.textContent = 'Por favor, adicione sua chave de API do Gemini no código.';
+                    feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-red-500';
+                    return;
+                }
 
                 const originalIconContent = iconElement.innerHTML;
-                iconElement.innerHTML = `<svg class="w-8 h-8 speaker-icon loading" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5V4H4zm0 12h5v-5H4v5zm8 0h5v-5h-5v5zm8-12v5h-5V4h5z"></path></svg>`; // Simple loader
+                iconElement.innerHTML = `<svg class="w-8 h-8 speaker-icon loading" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5V4H4zm0 12h5v-5H4v5zm8 0h5v-5h-5v5zm8-12v5h-5V4h5z"></path></svg>`;
                 iconElement.classList.add('cursor-not-allowed');
 
-                const apiKey = "";
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`;
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${userApiKey}`;
 
                 const payload = {
                     contents: [{ parts: [{ text: word }] }],
@@ -282,6 +297,8 @@
                     }
                 } catch (error) {
                     console.error('Error generating or playing audio:', error);
+                    feedbackMessage.textContent = 'Erro ao gerar áudio. Verifique sua chave de API.';
+                    feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-red-500';
                 } finally {
                     iconElement.innerHTML = originalIconContent;
                     iconElement.classList.remove('cursor-not-allowed');
@@ -429,6 +446,7 @@
             mainWordTextWrapper.addEventListener('touchend', showMainWordOriginal);
             mainWordSpeaker.addEventListener('click', () => speakWord(currentWordData.word, mainWordSpeaker.querySelector('svg')));
 
+            // Inicia o carregamento do vocabulário
             loadVocabularyFromUrl();
         });
 
