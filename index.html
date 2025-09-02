@@ -48,6 +48,15 @@
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 flex items-center justify-center min-h-screen p-4">
 
     <div class="w-full max-w-2xl mx-auto">
+        <!-- Modal da Chave de API -->
+        <div id="api-key-modal" class="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 text-center hidden">
+            <h2 class="text-2xl font-bold mb-4">Chave de API do Gemini</h2>
+            <p class="text-gray-600 dark:text-gray-400 mb-6">Para usar a funcionalidade de áudio, por favor, insira a sua chave de API do Google Gemini.</p>
+            <input type="password" id="api-key-input" placeholder="Cole a sua chave de API aqui" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg mb-4 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <button id="save-api-key-btn" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg transition duration-300">Salvar Chave</button>
+             <a href="https://aistudio.google.com/app/apikey" target="_blank" class="block mt-4 text-sm text-blue-500 hover:underline">Não tem uma chave? Obtenha uma aqui.</a>
+        </div>
+
         <!-- Conteúdo Principal do Jogo -->
         <div id="game-container" class="w-full max-w-2xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-6 md:p-8 text-center">
             
@@ -58,9 +67,14 @@
             
             <!-- Cabeçalho (escondido durante o carregamento) -->
             <header id="game-header" class="mb-6 hidden">
-                 <div class="text-left">
-                    <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Isaac English Challenge</h1>
-                    <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinônimo e digite a palavra.</p>
+                 <div class="flex justify-between items-start">
+                    <div class="text-left">
+                        <h1 class="text-3xl md:text-4xl font-bold text-blue-600 dark:text-blue-400">Isaac English Challenge</h1>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">Adivinhe o sinónimo e digite a palavra.</p>
+                    </div>
+                    <button id="settings-btn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    </button>
                 </div>
                 <div class="mt-4 flex justify-between items-center text-lg">
                     <span id="level-display" class="font-semibold bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full">Fase: 1</span>
@@ -72,7 +86,7 @@
             <main id="main-content" class="hidden">
                 <!-- Palavra Principal -->
                 <div id="main-word-container" class="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded-lg select-none transition-colors duration-200">
-                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Encontre o sinônimo para:</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">Encontre o sinónimo para:</p>
                     <div class="flex items-center justify-center gap-4">
                         <div id="main-word-text-wrapper" class="cursor-pointer">
                            <h2 id="main-word" class="text-4xl font-bold tracking-wider uppercase">WORD</h2>
@@ -90,7 +104,7 @@
 
                 <!-- Área para digitar -->
                 <div class="mb-4">
-                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Digite o sinônimo e pressione Enter:</p>
+                     <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Digite o sinónimo e pressione Enter:</p>
                     <div id="input-container" class="flex justify-center gap-2 flex-wrap">
                         <!-- Inputs serão inseridos aqui -->
                     </div>
@@ -119,9 +133,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // --- IMPORTANTE: Insira a sua chave de API do Gemini aqui ---
-            // Obtenha a sua chave em: https://aistudio.google.com/app/apikey
-            const userApiKey = 'AIzaSyAL_Gq4nw6dDcL6fPXFze5A2QjokfXyBJg';
+            let userApiKey = '';
 
             // --- PWA SETUP (Service Worker) ---
             function setupServiceWorker() {
@@ -158,6 +170,12 @@
             let currentWordData = null;
 
             // --- ELEMENTOS DO DOM ---
+            const apiKeyModal = document.getElementById('api-key-modal');
+            const apiKeyInput = document.getElementById('api-key-input');
+            const saveApiKeyBtn = document.getElementById('save-api-key-btn');
+            
+            const gameContainer = document.getElementById('game-container');
+            const settingsBtn = document.getElementById('settings-btn');
             const loadingState = document.getElementById('loading-state');
             const gameHeader = document.getElementById('game-header');
             const mainContent = document.getElementById('main-content');
@@ -174,6 +192,26 @@
             const gameOverScreen = document.getElementById('game-over-screen');
             const finalScoreEl = document.getElementById('final-score');
             const restartBtn = document.getElementById('restart-btn');
+
+            // --- LÓGICA DA API KEY ---
+            saveApiKeyBtn.addEventListener('click', () => {
+                const key = apiKeyInput.value.trim();
+                if (key) {
+                    localStorage.setItem('geminiApiKey', key);
+                    userApiKey = key;
+                } else {
+                    localStorage.removeItem('geminiApiKey');
+                    userApiKey = '';
+                }
+                apiKeyModal.classList.add('hidden');
+                gameContainer.classList.remove('hidden');
+            });
+            
+            settingsBtn.addEventListener('click', () => {
+                gameContainer.classList.add('hidden');
+                apiKeyInput.value = localStorage.getItem('geminiApiKey') || '';
+                apiKeyModal.classList.remove('hidden');
+            });
 
             // --- LÓGICA DE CARREGAMENTO DE FICHEIRO DA URL ---
             async function loadVocabularyFromUrl() {
@@ -248,15 +286,17 @@
 
             async function speakWord(word, iconElement) {
                 if (!word || iconElement.classList.contains('loading')) return;
-                
-                if (userApiKey === 'COLE_SUA_CHAVE_DE_API_AQUI' || !userApiKey) {
-                    feedbackMessage.textContent = 'Por favor, adicione sua chave de API do Gemini no código.';
-                    feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-red-500';
+                if (!userApiKey) {
+                    feedbackMessage.innerHTML = 'Para usar o áudio, adicione sua chave de API nas <button id="open-settings-from-feedback" class="font-bold underline text-blue-500">configurações</button>.';
+                    feedbackMessage.className = 'min-h-[4rem] text-lg font-semibold mb-4 flex items-center justify-center flex-col text-yellow-600';
+                    document.getElementById('open-settings-from-feedback').addEventListener('click', () => {
+                         settingsBtn.click();
+                    });
                     return;
                 }
 
                 const originalIconContent = iconElement.innerHTML;
-                iconElement.innerHTML = `<svg class="w-8 h-8 speaker-icon loading" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5V4H4zm0 12h5v-5H4v5zm8 0h5v-5h-5v5zm8-12v5h-5V4h5z"></path></svg>`;
+                iconElement.innerHTML = `<svg class="w-8 h-8 speaker-icon loading" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5V4H4zm0 12h5v-5H4v5zm8 0h5v-5h-5v5zm8-12v5h-5V4h5z"></path></svg>`; // Simple loader
                 iconElement.classList.add('cursor-not-allowed');
 
                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${userApiKey}`;
@@ -430,6 +470,13 @@
                 gameOverScreen.classList.add('hidden');
                 loadLevel();
             }
+            
+            function initializeGame() {
+                userApiKey = localStorage.getItem('geminiApiKey') || '';
+                gameContainer.classList.remove('hidden');
+                apiKeyModal.classList.add('hidden');
+                loadVocabularyFromUrl();
+            }
 
             // --- INICIALIZAÇÃO DOS EVENTOS ---
             nextLevelBtn.addEventListener('click', loadLevel);
@@ -444,8 +491,8 @@
             mainWordTextWrapper.addEventListener('touchend', showMainWordOriginal);
             mainWordSpeaker.addEventListener('click', () => speakWord(currentWordData.word, mainWordSpeaker.querySelector('svg')));
 
-            // Inicia o carregamento do vocabulário
-            loadVocabularyFromUrl();
+            // Inicia o jogo
+            initializeGame();
         });
 
         const style = document.createElement('style');
